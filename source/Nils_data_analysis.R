@@ -20,9 +20,10 @@ library(tidyr)
 library(tibble)
 library(dbplyr)
 library(dplyr, warn.conflicts = FALSE)
-library(OpenStreetMap)
-library(osmdata)
-library(maps)
+# library(OpenStreetMap)
+# library(osmdata)
+# library(maps)
+library(leaflet)
 library(lubridate)
 library(ggplot2)
 library(gridExtra)
@@ -110,7 +111,7 @@ c_plot <- function(df, y_val, y_name, clr = "dodgerblue4"){
 c <- c("Aquamarine4", "Sienna3")
 
 # Build correlation plots
-q2_1 <- c_plot(q2, q2$review_scores_rating, "Rating") 
+q2_1 <- c_plot(q2, q2$review_scores_rating, "Rating vs Price") 
 q2_2 <- c_plot(q2, q2$review_scores_accuracy, "Accuracy", clr = c[1]) 
 q2_3 <- c_plot(q2, q2$review_scores_cleanliness, "Cleanliness", clr = c[1]) 
 q2_4 <- c_plot(q2, q2$review_scores_checkin, "Check-in", clr = c[1]) 
@@ -154,12 +155,39 @@ correlation_df %>% knitr::kable(align = c("c", "c"))
 
 #################### Query 3: Room listing geographical distribution (Room Listing)
 
-# q3 <- listing %>% 
-#     left_join(host_info, by = "host_id") %>%
-#     select(host_id, host_name, listing_url, latitude, longitude, price, 
-#            review_scores_rating, number_of_reviews, neighbourhood_cleansed) %>% 
-#     replace_na(list(name = "No Name", host_name = "No Host Name"))
+# res <- dbSendQuery(mydb,
+#                    "SELECT id, name, listing_url, latitude, longitude, price, 
+#                    review_scores_rating, number_of_reviews, neighbourhood_cleansed, listing.host_id, host_info.host_name
+#                    FROM listing
+#                    LEFT JOIN host_info
+#                    ON listing.host_id = host_info.host_id
+#                    LIMIT 5000"
+# )
 # 
+# out_db <- fetch(res, n = -1)
+# dbClearResult(res)
+
+q3 <- listing %>%
+    left_join(host_info, by = "host_id") %>%
+    select(host_id, host_name, listing_url, latitude, longitude, price,
+           review_scores_rating, number_of_reviews, neighbourhood_cleansed) %>%
+    replace_na(list(name = "No Name", host_name = "No Host Name"))
+
+
+popup <- paste0("<b>", q3$name, "</b><br>",
+                "Listing ID: ", q3$id, "<br>",
+                "Host Name: ", q3$host_name, "<br>",
+                "Price: ", q3$price, "<br>",
+                "Review Scores Rating: ", ifelse(is.na(q3$review_scores_rating), "No Review Yet", q3$review_scores_rating) , "<br>",
+                "Number of Reviews: ", q3$number_of_reviews, "<br>",
+                "<a href=", q3$listing_url, "> Click for more info</a>"
+                )
+leaflet(data = q3) %>% 
+    addTiles() %>% 
+    addMarkers(lng = ~longitude,
+               lat = ~latitude, 
+               popup = popup, 
+               clusterOptions = markerClusterOptions())
 # location <- opq("Bangkok")
 
 
