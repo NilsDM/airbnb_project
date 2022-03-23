@@ -1,0 +1,94 @@
+---
+title: "Building & Preparing a RSQLite Database Using R"
+description: |
+  A step-by-step guide for constructing a RSQLite database using Airbnb data from the city of Bangkok.
+author:
+  - name: Nils Dosaj Mikkelsen
+    url: https://example.com/norajones
+    
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+This is where the introduction goes, give some context as to what your Trento compass for the project and also link to the data.
+
+## Libraries
+
+The following libraries are used for data cleaning and database construction
+
+```{r, warning=FALSE, message=FALSE}
+# Data cleaning libraries
+library(readr)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(dplyr) 
+
+# Database libraries
+library(DBI)
+library(RSQLite)
+```
+
+
+## Data/Database Connection
+
+Begin by loading the downloaded data into R using the `read_csv()` command from the `readr` library.
+
+```{r}
+data <- read_csv("../data/listings.csv.gz")
+```
+
+We also need to form a database connection object:
+
+```{r}
+con <- dbConnect(RSQLite::SQLite(), "airdb.SQLite")
+```
+
+While we are actively working on our database construction, we may find it useful to periodically disconnect and reconstruct our database. Having to close `R` and delete the `airdb.SQLite` file can be tedious, to get around this, we use the following `remove_live_database()` function to disconnect and current working database while `R` is still open:
+
+```{r}
+remove_live_database <- function(con){
+    if(file.exists("airdb.SQLite")){
+        if (exists("con")){
+            dbDisconnect(con)   
+        }
+        file.remove("airdb.SQLite")
+    }
+}
+```
+
+
+## Data
+
+### E/R Diagram
+
+## Host Table 
+
+### Data Cleaning
+
+### Data Insertion
+
+### Database Verification
+
+## Listing Table 
+
+### Data Cleaning
+
+### Data Insertion
+
+### Database Verification
+
+## Conclusion
+
+
+
+
+
+
+
