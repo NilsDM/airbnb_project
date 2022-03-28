@@ -1,22 +1,28 @@
 ---
 title: "Building & Preparing a RSQLite Database Using R"
 description: |
-  A step-by-step guide for constructing a RSQLite database using Airbnb data from the city of Bangkok.
+  A step-by-step guide for constructing an RSQLite database using Airbnb data.
 author:
-  - name: Nils Dosaj Mikkelsen
+  - name: Nils Dosaj Mikkelsen, Jose Lama
     url: https://example.com/norajones
     
 date: "`r Sys.Date()`"
-output: distill::distill_article
+output: 
+  distill::distill_article:
+    toc: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+# distill::distill_article
 ```
 
 # Introduction
 
-This is where the introduction goes, give some context as to what your Trento compass for the project and also link to the data.
+For this project, we demonstrate how to separate, clean and upload host and listing data taken from Airbnb for the city of Bangkok in Thailand.
+
+<center> [The data for our project can be found here](http://insideairbnb.com/get-the-data.html) </center>
 
 ## Libraries
 
@@ -33,6 +39,9 @@ library(dplyr)
 # Database libraries
 library(DBI)
 library(RSQLite)
+
+# ER Diagram libraries
+library(dm)
 ```
 
 
@@ -50,6 +59,8 @@ We also need to form a database connection object:
 con <- dbConnect(RSQLite::SQLite(), "airdb.SQLite")
 ```
 
+### Useful Function
+
 While we are actively working on our database construction, we may find it useful to periodically disconnect and reconstruct our database. Having to close `R` and delete the `airdb.SQLite` file can be tedious, to get around this, we use the following `remove_live_database()` function to disconnect and current working database while `R` is still open:
 
 ```{r}
@@ -66,15 +77,236 @@ remove_live_database <- function(con){
 
 ## Data
 
+The data used in for this project is provided by Airbnb and can be found [here](http://insideairbnb.com/get-the-data.html). To get started, first download the `listings.csv.gz` from the previous link. In order to help streamline the process of constructing our database, it is beneficial to split the `.csv` file into a `listing` table and a `host_info` table. View the E/R (Entity/Relationship) diagram in the next section, to see how these two tables relate. 
+
+From here, we will work on separating and cleaning the two respective tables prior to insertion in our database.
+
 ### E/R Diagram
+
+```{r, echo=FALSE, out.width='1500px', out.height='800px'}
+mydb <- dbConnect(RSQLite::SQLite(), "../airdb.SQLite")
+
+
+#################### Getting table details
+mydb_read <- dm_from_src(mydb)  
+
+#################### Setting primary and foreign keys
+mydb_w_key <- mydb_read %>%
+    dm_add_pk(listing, id) %>%
+    dm_add_pk(host_info, host_id) %>%
+    
+    dm_add_fk(listing, host_id, host_info) 
+
+#################### Draw the schema
+mydb_w_key %>% dm_draw(view_type = "all")
+# knitr::include_graphics("ERD.png")
+```
+
+
+## Initial Data
+
+We can examine our initial data using the `glimpse()` command from the `tibble` library.
+
+```{r}
+data %>% glimpse()
+```
+
+## Initial Preprocessing
+
+Before we separate the data into two separate tables, we perform the following preprocessing steps:
+
+  1. Convert all columns of the type `date` to the type `character` to help process `NA` values.
+  2. Convert all of the different `NA` representations (blanks, None, N/A, NA) to `NA`.
+  3. Convert all columns that contain dates back to the type `data`.
+
+```{r}
+data <- data %>% 
+        # (1) Convert dates to characters for NA values
+        mutate(last_scraped = as.character(last_scraped),
+               host_since = as.character(host_since),
+               calendar_last_scraped = as.character(calendar_last_scraped),
+               first_review = as.character(first_review),
+               last_review = as.character(last_review),
+               ) %>% 
+        
+        # (2) Homogenize NA values
+        #*# Taken from: https://rpubs.com/Argaadya/create_table_sql
+        mutate_all(function(x) ifelse(x == "" | x == "None" | x == "N/A", NA, x)) %>%  #*#
+        # mutate_all(function(x) ifelse(is.na(x), "NULL", x)) %>% 
+        
+        # (3) Convert character strings back to date type
+        mutate(last_scraped = as.Date(last_scraped),
+               host_since = as.Date(host_since),
+               calendar_last_scraped = as.Date(calendar_last_scraped),
+               first_review = as.Date(first_review),
+               last_review = as.Date(last_review))
+```
 
 ## Host Table 
 
+Since a host can have many listings, it's beneficial to split our initial data into two tables before inserting into our database. The first table that we create, is the `host_info` table with the same attributes as shown in the E/R Diagram above. 
+
+
 ### Data Cleaning
+
+We are now ready to extract and clean data from our initial `data` table in order to construct our `host_data` table. This is done and the following four steps:
+
+  1. Extract the relevant columns from our initial `data` table. Note that we use the `:` syntax to grab many columns at once. This command syntax is inclusive.
+  2. Remove duplicate rows using the `distinct()` function from the `dplyr` library.
+  3. Convert the `host_since` column back to the type `character`. This is required since `RSQLite` does not support data of the type `date`. We can convert back to the correct type when performing queries.
+  4. Can we use the `str_remove_all()` function from the `stringr` library to convert the `host_verifications` sublists into simple strings. _e.g._ "['email', 'phone']"  becomes "email, phone".
+
+```{r}
+    # (1) Extract host data 
+    host_data <- data %>% 
+        select(host_id:host_identity_verified, 
+               calculated_host_listings_count:calculated_host_listings_count_shared_rooms)
+    
+    
+    # (2) Remove duplicate values
+    host_data <- host_data %>% distinct()
+    
+    
+    # (3) Convert dates
+    # Note that this will need to converted back to type = date for analysis
+    host_data  <- host_data %>% mutate(host_since = as.character(host_since)) 
+    
+    
+    # (4) Clean host verification column
+    host_data <- 
+        host_data %>% 
+        mutate(host_verifications = str_remove_all(host_verifications, "[\\'\\[\\]]"))
+```
+
+We can now view our clean data:
+
+```{r}
+rmarkdown::paged_table(host_data)
+```
+
+## Host Data Insertion
+
+In order to facilitate the insertion of data into our `RSQLite` database, we the following `insert_to_sql()` function.
+
+### The insert_to_sql() function
+
+This function performs a number of operations prior to insertion:
+
+  1. Create a vector of the column names in the `data` argument.
+  2. Makes sure that all `NA` out values are in the correct form. For all non `NA` values, replace the double quotes with single quotes and bookend strings containing multiple quotes with double quotes.
+  3. Join all column data into a single string, transform `NA` values to `NULL` or data insertion and trim all additional whitespace.
+  4. Prepend and append each string with a left and right parentheses respectively before joining all values into a single string and removing all `\\`'s. Finally, use the `paste0()` function to convert our string into a query prior to insertion in our database's corresponding relevant table. 
+  5. Insert the now prepared data into the database.
+    
+
+```{r}
+insert_to_sql <- function(con, table, data){
+    
+    
+    # (1)
+    column_name <- paste(names(data), collapse = ", ")
+    
+    # (2)
+    data_new <- data %>% 
+        mutate_if(is.character, function(x) ifelse(is.na(x), NA,  x %>% 
+                                str_replace_all('"', "'") %>% # Replace " with '
+                                paste0('"', . , '"') # Add " before and after string
+        )
+        )
+    
+    value_data <- apply(data_new, MARGIN = 1,
+                        function(x) x %>%
+                            paste(collapse = ",") %>% # Join all column into single string
+                            str_replace_all("\\bNA\\b", "NULL")  %>% # Create NULL from NA
+                            str_trim() # remove unnecessary whitespace
+    )
+    # (4)
+    query_value <- paste(value_data) %>% 
+        paste0("(", ., ")") %>% # Add bracket before and after string
+        paste(collapse = ", ") %>% # Join all values into single string
+        str_remove_all("\\\\") %>% # Remove \\ from string
+        paste0("INSERT INTO ", table, "(", column_name, ") VALUES ", .)
+    
+    # (5)
+    dbSendQuery(con, query_value)
+}
+```
+
+
+### Host_info Table Creation
+
+Now that our `host_data` table is clean. We can create the equivalent table as a query, initially as a string listing the table's columns, before creating the empty table in our database using our `con` object:
+
+```{r}
+#################### Create table for host info
+    query <- "CREATE TABLE host_info(
+        host_id INT, 
+        host_url VARCHAR(50), 
+        host_name VARCHAR(100), 
+        host_since VARCHAR(50),
+        host_location VARCHAR(500), 
+        host_about VARCHAR(10000),
+        host_response_time VARCHAR(50),
+        host_response_rate VARCHAR(50),
+        host_acceptance_rate VARCHAR(50),
+        host_is_superhost BOOLEAN,
+        host_thumbnail_url VARCHAR(500),
+        host_picture_url VARCHAR(500),
+        host_neighbourhood VARCHAR(50),
+        host_listings_count INT,
+        host_total_listings_count INT,
+        host_verifications VARCHAR(500),
+        host_has_profile_pic BOOLEAN,
+        host_identity_verified BOOLEAN,
+        calculated_host_listings_count INT, 
+        calculated_host_listings_count_entire_homes INT,
+        calculated_host_listings_count_private_rooms INT,
+        calculated_host_listings_count_shared_rooms INT,
+        PRIMARY KEY(host_id)
+        )"
+```
+
 
 ### Data Insertion
 
+Now create the empty table in our database.
+
+```{r}
+dbSendQuery(con, query)
+```
+
+### Schema Verification
+
+Next, check the schema of our database so far.
+
+```{r}
+res <- dbSendQuery(con, "PRAGMA table_info([host_info]);")
+fetch(res)
+dbClearResult(res)
+```
+
+### Table Verification
+
+Finally, insert our `host_data` table into the equivalent table in our `RSQLite` database using the `insert_to_sql()` function as defined above.
+
+```{r, echo = TRUE, results = 'hide'}
+insert_to_sql(con, "host_info", host_data)
+```
+
+
 ### Database Verification
+
+We can verify the contents of our newly created and populated `RSQLite` database table `host_info` as follows: 
+
+```{r}
+res <- dbSendQuery(con, "SELECT * FROM host_info LIMIT 10") 
+
+out_db <- fetch(res) 
+dbClearResult(res)
+
+rmarkdown::paged_table(out_db)
+```
+
 
 ## Listing Table 
 
