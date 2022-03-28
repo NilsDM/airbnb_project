@@ -282,7 +282,30 @@ build_airbnb_database <- function(con, listing_data, remove_old_database = FALSE
 ```
 
 
+### Data Loading
 
+We can load the data from our database in either of the following ways: 
+
+  1. As data frames
+
+```{r}
+host_info <- tbl(con, "host_info") %>% as.data.frame()
+listing <- tbl(con, "listing") %>% as.data.frame()
+```
+
+  2. By querying the database
+
+```{r}
+# load host_info table 
+res_host_info <- dbSendQuery(con, "select * from host_info")  
+host_info <- fetch(res_host_info) 
+dbClearResult(res_host_info)
+
+# load listing table
+res_listing <- dbSendQuery(con, "select * from listing")
+listing <- fetch(res_listing)
+dbClearResult(res_listing)
+```
 
 
 ## Room Listing Queries
@@ -313,9 +336,107 @@ build_airbnb_database <- function(con, listing_data, remove_old_database = FALSE
 
 ### Room Price Review Score Correlation
 
-```{r}
+<center>  _Does paying a higher price for 'nicer' accommodations correlate to an increased satisfaction level?_ </center>
 
+
+We notice that while an accommodation may only have one score in terms of price, it is reviewed among several different dimensions:
+
+  1. Cleanliness
+  2. Checkin
+  3. Communication
+  4. Location
+  5. Rating
+  6. Accuracy
+  7. Value
+  8. Overall Rating
+  
+We start by selecting the `price` and review related columns from the `listing` table, drop any rows that are missing review score, and filter out a spurious outlier. This leaves us with roughly 10,000 observations remaining, more than enough to theoretically examine correlation.
+
+```{r}
+q5 <- 
+    listing %>% select(price, review_scores_accuracy, 
+                       review_scores_cleanliness, review_scores_checkin, 
+                       review_scores_communication, review_scores_location, 
+                       review_scores_rating, review_scores_value) %>% 
+                drop_na() %>% 
+                filter(price != 13)
 ```
+
+We defined the following function `c_plot()` to handle the repetitive plotting of price versus our eight different review dimensions.
+
+```{r}
+# Function defining correlation plot
+c_plot <- function(df, y_val, y_name, clr = "dodgerblue4"){
+    c_plot <- df %>% 
+        ggplot(aes(x = price,
+                   y = y_val)) +
+            geom_jitter(color = clr, alpha = 0.5) + 
+            scale_x_log10(label = scales::number_format(big.mark = ",")) +
+            labs(x = "Price",
+                 y = y_name,
+                 title = y_name) + theme_tq()
+    return(c_plot)
+}
+```
+
+We then construct our correlation graphs using the above defined `c_plot()` function. We also use the `grid.arrange()` function from the `gridExtra` library to help align our multiple plots for parallel examination.
+
+```{r}
+# Colours for correlation plot
+c <- c("Aquamarine4", "Sienna3")
+
+# Build correlation plots
+q5_1 <- c_plot(q5, q5$review_scores_rating, "Rating vs Price") 
+q5_2 <- c_plot(q5, q5$review_scores_accuracy, "Accuracy", clr = c[1]) 
+q5_3 <- c_plot(q5, q5$review_scores_cleanliness, "Cleanliness", clr = c[1]) 
+q5_4 <- c_plot(q5, q5$review_scores_checkin, "Check-in", clr = c[1]) 
+q5_5 <- c_plot(q5, q5$review_scores_communication, "Communication", clr = c[2]) 
+q5_6 <- c_plot(q5, q5$review_scores_location, "Location", clr = c[2]) 
+q5_7 <- c_plot(q5, q5$review_scores_value, "Value", clr = c[2]) 
+
+# Output correlation plots
+q5_1
+grid.arrange(q5_2, q5_3, q5_4, ncol = 3)
+grid.arrange(q5_5, q5_6, q5_7, ncol = 3)
+```
+
+Our plots appear noisy, and while we can see a consistent pattern between price and all eight dimensions along which accommodations are reviewed, we can statistically test the correlation by:
+
+  1. Using the `cor.test()` function each combination of price and review score
+  2. Extracting the test's confidence interval for each correlation test 
+  3. Compiling the results into a table for further examination
+
+```{r}
+# Conduct numerical correlation test
+c1 <- cor.test(q5$price, q5$review_scores_rating)
+c2 <- cor.test(q5$price, q5$review_scores_accuracy)
+c3 <- cor.test(q5$price, q5$review_scores_cleanliness)
+c4 <- cor.test(q5$price, q5$review_scores_checkin)
+c5 <- cor.test(q5$price, q5$review_scores_communication)
+c6 <- cor.test(q5$price, q5$review_scores_location)
+c7 <- cor.test(q5$price, q5$review_scores_value)
+
+# Extract correlation test confidence intervals
+c1_int <- paste0(round(c1$conf.int[1], 2), ", ", round(c1$conf.int[2], 2))
+c2_int <- paste0(round(c2$conf.int[1], 2), ", ", round(c2$conf.int[2], 2))
+c3_int <- paste0(round(c3$conf.int[1], 2), ", ", round(c3$conf.int[2], 2))
+c4_int <- paste0(round(c4$conf.int[1], 2), ", ", round(c4$conf.int[2], 2))
+c5_int <- paste0(round(c5$conf.int[1], 2), ", ", round(c5$conf.int[2], 2))
+c6_int <- paste0(round(c6$conf.int[1], 2), ", ", round(c6$conf.int[2], 2))
+c7_int <- paste0(round(c7$conf.int[1], 2), ", ", round(c7$conf.int[2], 2))
+
+# Construct data frame of confidence intervals for correlation plots
+confidence_intervals <- c(c1_int, c2_int, c3_int, c4_int, c5_int,
+                          c6_int, c7_int)
+
+review_category <- c("Rating", "Accuracy", "Cleanliness", "Check–in", 
+                     "Communication", "Location", "Value")
+
+correlation_df <- data.frame(review_category, confidence_intervals)
+correlation_df %>% knitr::kable(align = c("c", "c"))
+```
+
+Looking at our final table, we see that all confidence intervals contain the value 0, which  we could interpret to mean that there is no significant correlation between room price and the review score. Users paying for cheap accommodations may be perfectly satisfied with their experience, while paying more does not necessarily guarantee you a higher level of satisfaction.
 
 ### Room Listing Geographical Distribution
 
@@ -352,11 +473,68 @@ build_airbnb_database <- function(con, listing_data, remove_old_database = FALSE
 
 ```
 
-### How has the number of hosts joining airbnb increased/decreased overtime?
+### Most Active Months for New Host Sign-Up 
 
+<center> _What months of the year have historically seen the most activity in terms of new hosts signing up for the service?_ </center>
+
+We begin by extracting and isolating the necessary data using the following steps:
+
+  1. Join together the two tables.
+  2. Select the relevant columns.
+  3. Convert `host_since_date` to the type `date` using the `as.Date()` function.
+  4. Separate the `host_since` column into three separate columns for `Year`, `month` and `day` respectively.
+  5. Discard the unnecessary `day` column.
+  6. Group by `Year` and `Month` and use the `count()` function to tabulate the results.
+  7. Construct the necessary columns for the resulting plot and table in the next step
+  8. Disregard any rows containing `NA` values
 
 ```{r}
-
+q11 <- 
+    host_info %>%                                                     # 1
+    left_join(listing, by = "host_id") %>% 
+    select(host_id, host_since) %>%                                   # 2
+    mutate(host_since_date = as.Date(host_since)) %>%                 # 3
+    separate("host_since", c("Year", "Month", "Day"), sep = "-") %>%  # 4
+    select(-Day) %>%                                                  # 5
+    group_by(Year, Month) %>%                                         # 6
+    count(Year, Month) %>% 
+    ungroup() %>% 
+    mutate(year_month = paste0(Year, "-", Month, "-", "01"),          # 7
+           year_month_2 = paste0(Year, "-", Month), 
+           joined = n) %>% 
+    select(year_month, year_month_2, joined) %>% 
+    mutate(year_month = as.Date(year_month)) %>% 
+    drop_na()                                                         # 8
 ```
 
+Next, we use the `ggplot` library's `geom_line()` function to plot the data as a time series.
+
+```{r}
+q11 %>%
+    ggplot(aes(x = year_month, y = joined)) +
+    geom_line(size = 1.2, colour = "Aquamarine4") + 
+    scale_x_date(breaks = waiver(), date_breaks = "6 months") + theme_tq() + 
+    theme(axis.text.x = element_text(angle = 45, face = "bold", vjust = 0.65),
+          axis.text.y = element_text(face = "bold")) + 
+    labs(
+        title    = "Number of hosts joined",
+        subtitle = "Shows the frequency rate at which new posts sign up for airbnb",
+        caption  = "",
+        x        = "Joined",
+        y        = "Year/Month")
+```
+
+Since we are dealing with data over a number of years, it is helpful to also compile a list of the top 10 most active months in terms of new hosts
+
+```{r}
+q11 %>% 
+    select(-year_month) %>% 
+    mutate(year_month = as.yearmon(year_month_2)) %>% 
+    select(-year_month_2) %>% 
+    select(year_month, joined) %>% 
+    arrange(desc(joined)) %>% 
+    head(10) %>% knitr::kable(align = c("c", "c"))
+```
+
+We see that the summer months (June-August), especially in recent years, makeup almost all of the busiest months in terms of new hosts joining the service. Interestingly, December also has two months in the top 10.
 
