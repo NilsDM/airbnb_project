@@ -296,6 +296,85 @@ most_common_room_type_available <-q5%>%
                  digits = 2)
 
 most_common_room_type_available
+
+
+
+
+
+availability_periods <- c('availability_30', 'availability_60', 'availability_90', 'availability_365')
+
+for(col in availability_periods){
+    tables<- paste('q5',col, sep='_')
+    assign(tables,listing%>%
+               select(room_type,col)%>%
+               group_by(room_type)%>%
+               summarise(mean=mean(.data[[col]])))
+}
+
+
+
+
+q5_availability_30_plot<-q5_availability_30%>%
+    ggplot(aes(x = mean, y = room_type )) + 
+    geom_col(fill = "Aquamarine4") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Most Common Room Type Available 30 Days",
+        x        = "Availability",
+        y        = "Room Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+
+q5_availability_60_plot<-q5_availability_60%>%
+    ggplot(aes(x = mean, y = room_type )) + 
+    geom_col(fill = "Aquamarine4") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Most Common Room Type Available 60 Days",
+        x        = "Availability",
+        y        = "Room Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+
+q5_availability_90_plot<-q5_availability_90%>%
+    ggplot(aes(x = mean, y = room_type )) + 
+    geom_col(fill = "Aquamarine4") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Most Common Room Type Available 90 Days",
+        x        = "Availability",
+        y        = "Room Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+
+
+q5_availability_365_plot<-q5_availability_365%>%
+    ggplot(aes(x = mean, y = room_type )) + 
+    geom_col(fill = "Aquamarine4") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Most Common Room Type Available 365 Days",
+        x        = "Availability",
+        y        = "Room Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+
+ 
+grid.arrange(q5_availability_30_plot, q5_availability_60_plot, q5_availability_90_plot,q5_availability_365_plot, ncol = 2)
+
+
 ###########################################################################################
     
     
