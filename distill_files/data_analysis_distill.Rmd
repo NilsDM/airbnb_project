@@ -55,6 +55,7 @@ library(DBI)
 library(RSQLite)
 library(tidyr)
 library(tibble)
+library(stringr)
 library(dbplyr)
 library(dplyr, warn.conflicts = FALSE)
 library(leaflet)
@@ -440,31 +441,209 @@ Looking at our final table, we see that all confidence intervals contain the val
 
 ### Room Listing Geographical Distribution
 
-```{r}
+<center>  _How are rental properties distributed by geographical location?_ </center>
 
+To see the geographical distribution of available accommodations to rent, we use the `leaflet` library to create an interactive map
+
+```{r}
+q6 <- listing %>%
+    left_join(host_info, by = "host_id") %>%
+    select(host_id, host_name, listing_url, latitude, longitude, price,
+           review_scores_rating, number_of_reviews, neighbourhood_cleansed) %>%
+    replace_na(list(name = "No Name", host_name = "No Host Name"))
+
+
+popup <- paste0("<b>", q6$name, "</b><br>",
+                "Listing ID: ", q6$id, "<br>",
+                "Host Name: ", q6$host_name, "<br>",
+                "Price: ", q6$price, "<br>",
+                "Review Scores Rating: ", ifelse(is.na(q6$review_scores_rating), 
+                "No Review Yet", q6$review_scores_rating) , "<br>",
+                "Number of Reviews: ", q6$number_of_reviews, "<br>",
+                "<a href=", q6$listing_url, "> Click for more info</a>"
+                )
+leaflet(data = q6) %>% 
+    addTiles() %>% 
+    addMarkers(lng = ~longitude,
+               lat = ~latitude, 
+               popup = popup, 
+               clusterOptions = markerClusterOptions())
 ```
 
 
 
 ## Host Queries
 
-### Who are the top 10 host based on revenue?
+### Top hosts 
+
+<center> _Who are the top 10 hosts based on revenue?_ </center>
+
+We begin by joining together the two tables on the column `host_id`. We then select the necessary columns and create a new column called `total_earnings` which consists of the formula:
+
+<center> _total_earnings = price * review_scores_rating * minimum_nights_ </center>
+
+We then remove the columns containing `NA` values and perform a `count` after grouping by the attributes `host_id` and `host_name`. The same time, we calculate the average price. Then finally, select the columns we want and arrange in descending order by the `total_earnings`.
 
 ```{r}
-
+q7 <- listing %>% 
+    left_join(host_info, by = "host_id") %>% 
+    select(host_id, host_name, price, 
+           review_scores_rating, minimum_nights, number_of_reviews) %>%
+    mutate(total_earnings = price * review_scores_rating * minimum_nights) %>% 
+    drop_na() %>% 
+    group_by(host_id, host_name) %>% 
+    mutate(number_of_listing = n(),
+           average_price = mean(price)) %>% 
+    ungroup() %>% 
+    select(host_id, host_name, total_earnings, number_of_listing, average_price) %>% 
+    arrange(desc(total_earnings))
 ```
+
+We create two plots instead of just one to examine the top posts by revenue. The first plot examines the top 10 hosts by the number of listings they have. The second plot, depicts the top 10 hosts by their total earnings. 
+
+We plot the results using a similar process for both plots with main difference being that the y-axis for the `top_host_by_listing` plot is ordered by the `number_of_listing` column, While the `top_host_by_earning` is ordered by the `total_earnings` column
+
+```{r}
+top_host_by_listing <- 
+    q7 %>% 
+    arrange(desc(number_of_listing)) %>% 
+    select(host_name, number_of_listing) %>% 
+    distinct() %>% 
+    head(15) %>% 
+    ggplot(aes(x = number_of_listing, y = host_name %>% reorder(number_of_listing))) + 
+    geom_col(fill = "Skyblue3") +
+    labs(
+        title    = "Top Host by # of Listings",
+        x        = "Number of Listing",
+        y        = "Host Name"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+top_host_by_earning <- 
+    q7 %>% 
+    select(host_name, total_earnings) %>%
+    arrange(desc(total_earnings)) %>% 
+    filter(total_earnings != 16242500) %>% 
+    head(15) %>% 
+    ggplot(aes(x = total_earnings, y = host_name %>% reorder(total_earnings))) + 
+    geom_col(fill = "Aquamarine4") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Top Host by Total Earning",
+        x        = "Total Eearning (in Baht)",
+        y        = "Host Name"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(angle = 45, face = "bold", 
+                                     vjust = 0.85, hjust = 0.89),
+          axis.text.y = element_text(face = "bold"))
+```
+
+We use the `grid.arrange()` function from the `GridExtra` library to view the two plots side-by-side to aid in direct  comparison.
+
+```{r}
+grid.arrange(top_host_by_listing, top_host_by_earning, ncol = 2)
+```
+
+We notice that the host __Bee__ is the only one who appears in both _Top 10_ lists
 
 ### Is there any difference in review score between superhost and normal host?
 
 ```{r}
+q8 <- listing %>% 
+    left_join(host_info, by = "host_id") %>% 
+    select(host_id, host_name, review_scores_rating, host_is_superhost) %>% 
+    drop_na() %>% 
+    mutate(host_is_superhost = as.logical(host_is_superhost)) %>% 
+    select(review_scores_rating, host_is_superhost)
 
+q8_1 <- 
+    q8[q8$host_is_superhost == FALSE, ] %>% 
+    ggplot(aes(y = review_scores_rating, group = host_is_superhost)) + 
+    geom_boxplot(fill = "Skyblue3") + 
+    labs(
+        title    = "Host Ratings",
+        subtitle = "Ratings Distribution",
+        x        = "Host",
+        y        = "Rating"
+    ) + theme_tq()  + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold")) 
+
+q8_2 <- 
+    q8[q8$host_is_superhost == TRUE, ] %>% 
+    ggplot(aes(y = review_scores_rating, group = host_is_superhost)) + 
+    geom_boxplot(fill = "Aquamarine3") + 
+    labs(
+        title    = "Superhost Ratings",
+        subtitle = "Ratings Distribution",
+        x        = "Superhost",
+        y        = "Rating"
+    ) + theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold")) 
+
+grid.arrange(q8_1, q8_2, ncol = 2)
+
+host <-  q8[q8$host_is_superhost == FALSE, ]
+super_host <-  q8[q8$host_is_superhost == TRUE, ]
+
+t.test(host$review_scores_rating, super_host$review_scores_rating)
 ```
 
 
 ### Is there any difference in response rate between superhost and normal host?
 
 ```{r}
+q9 <- listing %>% 
+    left_join(host_info, by = "host_id") %>% 
+    select(host_id, host_name, host_response_rate, host_acceptance_rate, host_is_superhost) %>%
+    drop_na() %>% 
+    mutate(host_is_superhost = as.logical(host_is_superhost), 
+           # Transform acceptance rate and response rate
+           host_response_rate = host_response_rate %>% 
+               str_remove("[%]") %>% 
+               as.numeric(),
+           host_acceptance_rate = host_acceptance_rate %>% 
+               str_remove("[%]") %>% 
+               as.numeric()
+    )
 
+
+q9_1 <- 
+    q9[q9$host_is_superhost == FALSE, ] %>% 
+    ggplot(aes(y = host_response_rate, group = host_is_superhost)) + 
+    geom_boxplot(fill = "Skyblue3") + 
+    labs(
+        title    = "Host Response Rate",
+        subtitle = "Ratings Distribution",
+        x        = "Host",
+        y        = "Rating"
+    ) + theme_tq()  + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold")) 
+
+q9_2 <- 
+    q9[q9$host_is_superhost == TRUE, ] %>% 
+    ggplot(aes(y = host_response_rate, group = host_is_superhost)) + 
+    geom_boxplot(fill = "Aquamarine3") + 
+    labs(
+        title    = "Superhost Response Rate",
+        subtitle = "Ratings Distribution",
+        x        = "Superhost",
+        y        = "Rating"
+    ) + theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold")) 
+
+grid.arrange(q9_1, q9_2, ncol = 2)
+
+host_2 <-  q9[q9$host_is_superhost == FALSE, ]
+super_host_2 <-  q9[q9$host_is_superhost == TRUE, ]
+
+t.test(host_2$host_response_rate, super_host_2$host_response_rate)
 ```
 
 ### What is the most commonly verified host information?
@@ -536,5 +715,5 @@ q11 %>%
     head(10) %>% knitr::kable(align = c("c", "c"))
 ```
 
-We see that the summer months (June-August), especially in recent years, makeup almost all of the busiest months in terms of new hosts joining the service. Interestingly, December also has two months in the top 10.
+We see that the summer months (June-August), especially in recent years, makeup half of the busiest months in terms of new hosts joining the service. Interestingly, December also has two months in the top 10.
 

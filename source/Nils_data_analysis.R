@@ -152,18 +152,6 @@ correlation_df %>% knitr::kable(align = c("c", "c"))
 
 #################### Query 3: Room listing geographical distribution (Room Listing)
 
-# res <- dbSendQuery(mydb,
-#                    "SELECT id, name, listing_url, latitude, longitude, price, 
-#                    review_scores_rating, number_of_reviews, neighbourhood_cleansed, listing.host_id, host_info.host_name
-#                    FROM listing
-#                    LEFT JOIN host_info
-#                    ON listing.host_id = host_info.host_id
-#                    LIMIT 5000"
-# )
-# 
-# out_db <- fetch(res, n = -1)
-# dbClearResult(res)
-
 q3 <- listing %>%
     left_join(host_info, by = "host_id") %>%
     select(host_id, host_name, listing_url, latitude, longitude, price,
@@ -185,7 +173,6 @@ leaflet(data = q3) %>%
                lat = ~latitude, 
                popup = popup, 
                clusterOptions = markerClusterOptions())
-# location <- opq("Bangkok")
 
 
 #################### Query 4: Who are the top 10 host based on revenue? (Host)
@@ -280,11 +267,6 @@ super_host <-  q5[q5$host_is_superhost == TRUE, ]
 
 t.test(host$review_scores_rating, super_host$review_scores_rating)
 #################### Query 6: Is there any difference in response rate between superhost and normal host? (Host)
-res <- dbSendQuery(mydb,
-                   "SELECT host_id, host_name, host_response_rate, host_acceptance_rate, host_is_superhost
-                   FROM host_info
-                   WHERE host_response_rate IS NOT NULL and host_acceptance_rate IS NOT NULL"
-)
 
 q6 <- listing %>% 
     left_join(host_info, by = "host_id") %>% 
