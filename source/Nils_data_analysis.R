@@ -18,6 +18,7 @@ library(DBI)
 library(RSQLite)
 library(tidyr)
 library(tibble)
+library(stringr)
 library(dbplyr)
 library(dplyr, warn.conflicts = FALSE)
 library(leaflet)
@@ -264,8 +265,6 @@ grid.arrange(q5_1, q5_2, ncol = 2)
 
 host <-  q5[q5$host_is_superhost == FALSE, ]
 super_host <-  q5[q5$host_is_superhost == TRUE, ]
-
-t.test(host$review_scores_rating, super_host$review_scores_rating)
 #################### Query 6: Is there any difference in response rate between superhost and normal host? (Host)
 
 q6 <- listing %>% 
@@ -313,6 +312,7 @@ grid.arrange(q6_1, q6_2, ncol = 2)
 
 host_2 <-  q6[q6$host_is_superhost == FALSE, ]
 super_host_2 <-  q6[q6$host_is_superhost == TRUE, ]
+
 
 t.test(host_2$host_response_rate, super_host_2$host_response_rate)
 

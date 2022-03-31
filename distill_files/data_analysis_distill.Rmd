@@ -401,43 +401,7 @@ grid.arrange(q5_2, q5_3, q5_4, ncol = 3)
 grid.arrange(q5_5, q5_6, q5_7, ncol = 3)
 ```
 
-Our plots appear noisy, and while we can see a consistent pattern between price and all eight dimensions along which accommodations are reviewed, we can statistically test the correlation by:
-
-  1. Using the `cor.test()` function each combination of price and review score
-  2. Extracting the test's confidence interval for each correlation test 
-  3. Compiling the results into a table for further examination
-
-```{r}
-# Conduct numerical correlation test
-c1 <- cor.test(q5$price, q5$review_scores_rating)
-c2 <- cor.test(q5$price, q5$review_scores_accuracy)
-c3 <- cor.test(q5$price, q5$review_scores_cleanliness)
-c4 <- cor.test(q5$price, q5$review_scores_checkin)
-c5 <- cor.test(q5$price, q5$review_scores_communication)
-c6 <- cor.test(q5$price, q5$review_scores_location)
-c7 <- cor.test(q5$price, q5$review_scores_value)
-
-# Extract correlation test confidence intervals
-c1_int <- paste0(round(c1$conf.int[1], 2), ", ", round(c1$conf.int[2], 2))
-c2_int <- paste0(round(c2$conf.int[1], 2), ", ", round(c2$conf.int[2], 2))
-c3_int <- paste0(round(c3$conf.int[1], 2), ", ", round(c3$conf.int[2], 2))
-c4_int <- paste0(round(c4$conf.int[1], 2), ", ", round(c4$conf.int[2], 2))
-c5_int <- paste0(round(c5$conf.int[1], 2), ", ", round(c5$conf.int[2], 2))
-c6_int <- paste0(round(c6$conf.int[1], 2), ", ", round(c6$conf.int[2], 2))
-c7_int <- paste0(round(c7$conf.int[1], 2), ", ", round(c7$conf.int[2], 2))
-
-# Construct data frame of confidence intervals for correlation plots
-confidence_intervals <- c(c1_int, c2_int, c3_int, c4_int, c5_int,
-                          c6_int, c7_int)
-
-review_category <- c("Rating", "Accuracy", "Cleanliness", "Check–in", 
-                     "Communication", "Location", "Value")
-
-correlation_df <- data.frame(review_category, confidence_intervals)
-correlation_df %>% knitr::kable(align = c("c", "c"))
-```
-
-Looking at our final table, we see that all confidence intervals contain the value 0, which  we could interpret to mean that there is no significant correlation between room price and the review score. Users paying for cheap accommodations may be perfectly satisfied with their experience, while paying more does not necessarily guarantee you a higher level of satisfaction.
+Our plots appear noisy, but the trend seems to be that properties with a lower price have a tendency to accrue more lower ratings along every dimension then properties with a higher rental price. We do see plenty of properties at the lower price range however, that have excellent review scores.Unfortunately, due to the asymmetric nature of the data, we are unable to apply the `cor.test()` function to determine if the correlation between price and review rating is statistically significant.
 
 ### Room Listing Geographical Distribution
 
@@ -549,7 +513,20 @@ grid.arrange(top_host_by_listing, top_host_by_earning, ncol = 2)
 
 We notice that the host __Bee__ is the only one who appears in both _Top 10_ lists
 
-### Is there any difference in review score between superhost and normal host?
+### Superhost vs Host Review Score 
+
+<center> _Is there any difference in review score between superhost and normal host?_ </center>
+
+Certain hosts receive the designation of _superhost_ which can be achieved by meeting [the following criteria](https://www.mashvisor.com/blog/what-does-superhost-mean-on-airbnb/):
+
+  1. 12 months experience as a host
+  2. Complete a minimum of 100 nights booked
+  3. Response rate 90% or higher
+  4. The consistent overall rating of 4.8 or higher
+  5. A cancellation rate less than 1%
+  6. At least 80% of all reviews are 5-star
+  
+In order to determine the difference in review score between superhosts and regular hosts, we use the `mutate()` function to create a new `logical` column  `host_is_superhost`.  
 
 ```{r}
 q8 <- listing %>% 
@@ -558,7 +535,11 @@ q8 <- listing %>%
     drop_na() %>% 
     mutate(host_is_superhost = as.logical(host_is_superhost)) %>% 
     select(review_scores_rating, host_is_superhost)
+```
 
+We then create two separate boxplots after isolating only the observations that match the respective `TRUE/FALSE` condition respectively for the `host_is_superhost` column.
+
+```{r}
 q8_1 <- 
     q8[q8$host_is_superhost == FALSE, ] %>% 
     ggplot(aes(y = review_scores_rating, group = host_is_superhost)) + 
@@ -583,18 +564,22 @@ q8_2 <-
         y        = "Rating"
     ) + theme_tq() + 
     theme(axis.text.x = element_text(face = "bold"),
-          axis.text.y = element_text(face = "bold")) 
-
-grid.arrange(q8_1, q8_2, ncol = 2)
-
-host <-  q8[q8$host_is_superhost == FALSE, ]
-super_host <-  q8[q8$host_is_superhost == TRUE, ]
-
-t.test(host$review_scores_rating, super_host$review_scores_rating)
+          axis.text.y = element_text(face = "bold"))
 ```
 
+Finally, we once again use the `grid.arrange()` function from the `GridExtra` library to view the two plots side-by-side to aid in direct comparison.
 
-### Is there any difference in response rate between superhost and normal host?
+```{r}
+grid.arrange(q8_1, q8_2, ncol = 2)
+```
+
+There does appear to be a difference in response rate between superhosts and regular hosts based off visual inspection with the average superhost rating ranking slightly higher. Unfortunately, due to the non-normality of the data, we are unable to rely on a `t.test()` to verify statistically if our visual assumptions are correct.
+
+### Superhost vs Host Response Rate
+
+<center> _Is there any difference in response rate between superhost and normal host?_ </center>
+
+We repeat the same process as the previous query to determine the difference in `response rate`
 
 ```{r}
 q9 <- listing %>% 
@@ -610,8 +595,10 @@ q9 <- listing %>%
                str_remove("[%]") %>% 
                as.numeric()
     )
+```
 
 
+```{r}
 q9_1 <- 
     q9[q9$host_is_superhost == FALSE, ] %>% 
     ggplot(aes(y = host_response_rate, group = host_is_superhost)) + 
@@ -636,15 +623,15 @@ q9_2 <-
         y        = "Rating"
     ) + theme_tq() + 
     theme(axis.text.x = element_text(face = "bold"),
-          axis.text.y = element_text(face = "bold")) 
-
-grid.arrange(q9_1, q9_2, ncol = 2)
-
-host_2 <-  q9[q9$host_is_superhost == FALSE, ]
-super_host_2 <-  q9[q9$host_is_superhost == TRUE, ]
-
-t.test(host_2$host_response_rate, super_host_2$host_response_rate)
+          axis.text.y = element_text(face = "bold"))
 ```
+
+
+```{r}
+grid.arrange(q9_1, q9_2, ncol = 2)
+```
+
+We see here that superhosts have a noticeably higher median `response rate` than regular hosts. Although, the set of superhosts is not without its outliers raising the question if some of these hosts may soon lose their superhost status due to their lacklustre response rate.
 
 ### What is the most commonly verified host information?
 
