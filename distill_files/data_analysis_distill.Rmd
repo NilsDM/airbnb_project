@@ -1,7 +1,7 @@
 ---
 title: "Airbnb Data Analytics"
 description: | 
-  Answering several data analysis questions using our RSQLite database setup in the previous post
+  Using our RSQLite database setup in the previous post to answer several related data analysis questions
 author:
   - name: Nils Dosaj Mikkelsen, Jose Lama
     url: https://example.com/norajones 
@@ -29,8 +29,8 @@ We answer the following 11 questions:
 ### Room Listing
 
   1. What is the most common room type available?
-  2. What is the top and bottom 10 property type based on average price?
-  3. What is the top and bottom 10 property type based on review score?
+  2. What is the top and bottom 10 property types based on average price?
+  3. What is the top and bottom 10 property types based on review score?
   4. What is the most common amenities provided?
   5. Is there any correlation between room price and the review score?
   6. Room listing geographical distribution
@@ -77,7 +77,7 @@ con <- dbConnect(RSQLite::SQLite(), "airdb.SQLite")
 
 ### The `build_airbnb_database()` Function
 
-If you have not yet set up the require database, you may use the `build_airbnb_database()` function to do so for you. Note that this function leverages the `remove_old_database()` and `insert_to_sql()` functions defined in the previous post.
+If you have not yet set up the require database, you can use the `build_airbnb_database()` function to do so. Note that this function leverages the `remove_old_database()` and `insert_to_sql()` functions defined in the previous post.
 
 ```{r, code_folding=TRUE}
 build_airbnb_database <- function(con, listing_data, remove_old_database = FALSE){
@@ -401,7 +401,7 @@ grid.arrange(q5_2, q5_3, q5_4, ncol = 3)
 grid.arrange(q5_5, q5_6, q5_7, ncol = 3)
 ```
 
-Our plots appear noisy, but the trend seems to be that properties with a lower price have a tendency to accrue more lower ratings along every dimension then properties with a higher rental price. We do see plenty of properties at the lower price range however, that have excellent review scores.Unfortunately, due to the asymmetric nature of the data, we are unable to apply the `cor.test()` function to determine if the correlation between price and review rating is statistically significant.
+Our plots appear noisy, but the trend seems to be that properties with a lower price have a tendency to accrue more lower ratings along every dimension then properties with a higher rental price. We do see plenty of properties at the lower price range however, that have excellent review scores. Unfortunately, due to the asymmetric, non-normal distributed nature of the data, we are unable to apply the `cor.test()` function to determine if the correlation between price and review rating is statistically significant.
 
 ### Room Listing Geographical Distribution
 
@@ -446,7 +446,7 @@ We begin by joining together the two tables on the column `host_id`. We then sel
 
 <center> _total_earnings = price * review_scores_rating * minimum_nights_ </center>
 
-We then remove the columns containing `NA` values and perform a `count` after grouping by the attributes `host_id` and `host_name`. The same time, we calculate the average price. Then finally, select the columns we want and arrange in descending order by the `total_earnings`.
+We then remove the columns containing `NA` values and perform a `count` after grouping by the attributes `host_id` and `host_name`. At the same time, we calculate the average price and then finally, select the columns we want and arrange in descending order by the `total_earnings`.
 
 ```{r}
 q7 <- listing %>% 
@@ -465,7 +465,7 @@ q7 <- listing %>%
 
 We create two plots instead of just one to examine the top posts by revenue. The first plot examines the top 10 hosts by the number of listings they have. The second plot, depicts the top 10 hosts by their total earnings. 
 
-We plot the results using a similar process for both plots with main difference being that the y-axis for the `top_host_by_listing` plot is ordered by the `number_of_listing` column, While the `top_host_by_earning` is ordered by the `total_earnings` column
+We plot the results using a similar process for both plots with the main difference being that the y-axis for the `top_host_by_listing` plot is ordered by the `number_of_listing` column, While the `top_host_by_earning` is ordered by the `total_earnings` column
 
 ```{r}
 top_host_by_listing <- 
@@ -505,13 +505,13 @@ top_host_by_earning <-
           axis.text.y = element_text(face = "bold"))
 ```
 
-We use the `grid.arrange()` function from the `GridExtra` library to view the two plots side-by-side to aid in direct  comparison.
+We once again use the `grid.arrange()` function from the `GridExtra` library to view the two plots side-by-side to aid in direct  comparison.
 
 ```{r}
 grid.arrange(top_host_by_listing, top_host_by_earning, ncol = 2)
 ```
 
-We notice that the host __Bee__ is the only one who appears in both _Top 10_ lists
+We notice that the host __Bee__ is the only one who appears in both _Top 10_ lists.
 
 ### Superhost vs Host Review Score 
 
@@ -537,7 +537,7 @@ q8 <- listing %>%
     select(review_scores_rating, host_is_superhost)
 ```
 
-We then create two separate boxplots after isolating only the observations that match the respective `TRUE/FALSE` condition respectively for the `host_is_superhost` column.
+We then create two separate boxplots after isolating only the observations that match the respective `TRUE/FALSE` condition for the `host_is_superhost` column.
 
 ```{r}
 q8_1 <- 
@@ -573,7 +573,7 @@ Finally, we once again use the `grid.arrange()` function from the `GridExtra` li
 grid.arrange(q8_1, q8_2, ncol = 2)
 ```
 
-There does appear to be a difference in response rate between superhosts and regular hosts based off visual inspection with the average superhost rating ranking slightly higher. Unfortunately, due to the non-normality of the data, we are unable to rely on a `t.test()` to verify statistically if our visual assumptions are correct.
+There does appear to be a difference in response rate, especially in terms of variance, between superhosts and regular hosts based off visual inspection with the average superhost rating also ranking slightly higher. Unfortunately, due to the non-normality of the data, we are unable to rely on a `t.test()` to verify statistically if our visual assumptions are correct.
 
 ### Superhost vs Host Response Rate
 
@@ -631,7 +631,7 @@ q9_2 <-
 grid.arrange(q9_1, q9_2, ncol = 2)
 ```
 
-We see here that superhosts have a noticeably higher median `response rate` than regular hosts. Although, the set of superhosts is not without its outliers raising the question if some of these hosts may soon lose their superhost status due to their lacklustre response rate.
+We see here that regular hosts have a noticeably lower first quartile for `response rate` than the superhosts. Although, the set of superhosts is not without its outliers raising the question if some of these hosts may soon lose their superhost status due to their lacklustre response rate.
 
 ### What is the most commonly verified host information?
 
@@ -704,3 +704,15 @@ q11 %>%
 
 We see that the summer months (June-August), especially in recent years, makeup half of the busiest months in terms of new hosts joining the service. Interestingly, December also has two months in the top 10.
 
+### Database Disconnect
+
+Finally, before exiting our program, disconnect from the database
+
+```{r}
+dbDisconnect(con)
+```
+
+
+## Conclusion
+
+We have demonstrated how to pull in real-world data, divide and clean the data into usable tables, insert the data into a database and then use that database to answer interesting questions that may help provide useful and actionable insights on which to base future decisions. `R` and its many libraries, specifically the `tidyverse`, provide a powerful framework with which to answer many interesting questions, often in only a few lines of code. We encourage you to come up with your own questions and see if you can answer them using the provided data.

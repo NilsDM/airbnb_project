@@ -79,10 +79,10 @@ remove_live_database <- function(con){
 
 ### The `insert_to_sql()` function
 
-In order to facilitate the insertion of data into our `RSQLite` database, we the following `insert_to_sql()` function. This function performs a number of operations prior to insertion:
+In order to facilitate the insertion of data into our `RSQLite` database, we use the following `insert_to_sql()` function. This function performs a number of operations prior to insertion:
 
-  1. Create a vector of the column names in provided the `data` argument.
-  2. Makes sure that all `NA` out values are in the correct form. For all non `NA` values, replace the double quotes with single quotes and bookend all strings with double quotes.
+  1. Create a vector of the column names in the provided the `data` argument.
+  2. Makes sure that all `NA` values are in the correct form. For all non `NA` values, replace the double quotes with single quotes and bookend all strings with double quotes.
   3. Join all column data into a single string, transform `NA` values to `NULL` and trim all additional whitespace.
   4. Prepend and append each string with a left and right parentheses respectively before joining all values into a single string and removing all `\\`'s. Finally, use the `paste0()` function to convert our string into a query prior to insertion in our database's corresponding relevant table. 
   5. Insert the now prepared data into the database.
@@ -123,7 +123,7 @@ insert_to_sql <- function(con, table, data){
 
 ## Data
 
-The data used in for this project is provided by Airbnb and can be found [here](http://insideairbnb.com/get-the-data.html). To get started, first download the `listings.csv.gz` from the previous link. In order to help streamline the process of constructing our database, it is beneficial to split the `.csv` file into a `listing` table and a `host_info` table. The E/R (Entity/Relationship) diagram in the next section shows how these two tables are related and the attributes they each hold. 
+The data used in for this project is provided by Airbnb and can be found [here](http://insideairbnb.com/get-the-data.html). To get started, first download the `listings.csv.gz` from the provided link. In order to help streamline the process of constructing our database, it is beneficial to split the `.csv` file into a `listing` table and a `host_info` table. The E/R (Entity/Relationship) diagram in the next section shows how these two tables are related and the attributes they each hold. 
 
 ### E/R Diagram
 
@@ -161,7 +161,7 @@ data %>% glimpse()
 Before we separate the data into two separate tables, we perform the following preprocessing steps on all entries:
 
   1. Convert all columns of the type `date` to the type `character` to help process `NA` values.
-  2. Convert all of the different `NA` representations (blanks, None, N/A, NA) to `NA`.
+  2. Homogenize all of the different `NA` representations (blanks, None, N/A, NA) to `NA`.
   3. Convert all columns that contain dates back to the type `data`.
 
 ```{r}
@@ -238,7 +238,7 @@ rmarkdown::paged_table(host_data)
 Now that our `host_data` table is clean. We can create the equivalent table as a query, initially as a string listing the table's columns, before creating the empty table in our database using our `con` object:
 
 ```{r}
-#################### Create table for host info
+# Create host info query
     query <- "CREATE TABLE host_info(
         host_id INT, 
         host_url VARCHAR(50), 
@@ -315,6 +315,7 @@ We are now ready to move on to constructing our `listing` table. This table cont
 ### Data Cleaning
 
 In order to prepare the relevant columns related to listing information we perform the following:
+
   1. Remove all columns related to `host_data`.
   2. Remove additional unnecessary columns.
   3. Remove the dollar signs in the `price` column.
@@ -357,7 +358,7 @@ listing_data <-
 Just as before, create our `listing` database table initially as a string to be inserted as a query.
 
 ```{r}
-#################### Create listing table
+# Create listing table query
     query_2 <- "CREATE TABLE listing (
         id INT,
         listing_url VARCHAR(100),
