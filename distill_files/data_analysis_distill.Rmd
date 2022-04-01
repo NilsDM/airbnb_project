@@ -313,25 +313,374 @@ dbClearResult(res_listing)
 
 ### Most Common Room Type Available
 
+<center>  _What is the most common room type available?_ </center>
+
+To get the most common room type available we start by selecting `room_type` and `has_availability`, the last one being a logical indicator of general unit availability of room types. Then we filter the rooms that have availability, group them by `room_type` and ranked the room types based.
+
+
 ```{r}
+
+q1<- listing%>%
+    select(room_type,has_availability)%>%
+    group_by(room_type)%>%
+    filter(has_availability==1)%>%
+    summarise(availability=n())%>%
+    arrange(desc(availability))
+
+#Using kable for table format
+most_common_room_type_available <-q1%>% 
+    knitr::kable(align = c("l", "c"),
+                 format.args = list(big.mark = ","),
+                 digits = 2)
+
+most_common_room_type_available
 
 ```
 
-### Top/Bottom Room Types Based on Average Price
+
+For better understanding of room type availability we plotted a bar graph.
 
 ```{r}
+q1_plot<-q1%>%
+    ggplot(aes(x = availability, y = room_type %>% reorder(availability))) + 
+    geom_col(fill = "Aquamarine4") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Most Common Room Type Available",
+        x        = "Availability",
+        y        = "Room Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+q1_plot
+```
+
+As we see "Entire home/apt" is the room type with the most units available overall but that is also affected by the amount of "Entire home/apt" that are listed on Airbnb. When we take a look at the data there is also information about availability over periods of 30, 60, 90 and 365 days, this allow us to understand the average amount of nights available per room type on a selected period.
+
+
+```{r}
+#Create list columns to retrieve data
+
+availability_periods <- c('availability_30', 'availability_60', 'availability_90', 'availability_365')
+
+#Looping the results per period
+for(col in availability_periods){
+    tables<- paste('q1',col, sep='_')
+    assign(tables,listing%>%
+               select(room_type,col)%>%
+               group_by(room_type)%>%
+               summarise(mean=mean(.data[[col]])))
+}
+
+
+####################LOOP THE PLOTS
+
+
+q1_availability_30_plot<-q1_availability_30%>%
+    ggplot(aes(x = mean, y = room_type )) + 
+    geom_col(fill = "Aquamarine4") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Most Common Room Type Available 30 Days",
+        x        = "Availability",
+        y        = "Room Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+
+q1_availability_60_plot<-q1_availability_60%>%
+    ggplot(aes(x = mean, y = room_type )) + 
+    geom_col(fill = "Aquamarine4") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Most Common Room Type Available 60 Days",
+        x        = "Availability",
+        y        = "Room Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+
+q1_availability_90_plot<-q1_availability_90%>%
+    ggplot(aes(x = mean, y = room_type )) + 
+    geom_col(fill = "Aquamarine4") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Most Common Room Type Available 90 Days",
+        x        = "Availability",
+        y        = "Room Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+
+
+q1_availability_365_plot<-q1_availability_365%>%
+    ggplot(aes(x = mean, y = room_type )) + 
+    geom_col(fill = "Aquamarine4") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Most Common Room Type Available 365 Days",
+        x        = "Availability",
+        y        = "Room Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+
+ 
+grid.arrange(q1_availability_30_plot, q1_availability_60_plot, q1_availability_90_plot,q1_availability_365_plot, ncol = 2)
+
+```
+
+As we see in the plot "Entire home/apt" are the room types with the least average availability, combined with the fact that "Entire home/apt" is the room type with the highest units available we can assume that this is also the room type with the highest demand. 
+
+
+### Top/Bottom Property Types Based on Average Price
+
+<center>  _Which are top 10 most expensive and top 10 cheapest property type?_ </center>
+
+First we start by selecting `property_type` and `price` from all available data, then we group by property type and summarise by average price. Then we will proceed to create two ranks, ] `top_property_type_average_price` and `bottom_property_type_average_price`.
+
+```{r}
+
+q2<- listing%>%
+    select(property_type,price)%>%
+    group_by(property_type)%>%
+    summarise(price = mean(price))%>%
+    arrange(desc(price))
+
+
+top_property_type_average_price <-q2 %>%
+    arrange(desc(price))%>%
+    top_n(10)%>% 
+    knitr::kable(align = c("l", "c"),
+    format.args = list(big.mark = ","),
+    digits = 2)
+
+top_property_type_average_price
+        
+
+bottom_property_type_average_price <-q2 %>%
+    arrange(price)%>%
+    top_n(-10)%>% 
+    knitr::kable(align = c("l", "c"),
+                 format.args = list(big.mark = ","),
+                 digits = 2)
+
+bottom_property_type_average_price
+
+```
+
+
+Then we plotted both ranks and using `grid.arrange()` function from the `gridExtra` library to have a parallel view of both plots.
+
+```{r}
+
+
+top_q2<- q2%>%
+    arrange(desc(price))%>%
+    top_n(10)%>% 
+    ggplot(aes(x = price, y = property_type %>% reorder(price))) + 
+    geom_col(fill = "Aquamarine4") + 
+   
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Top Property Type by Average price",
+        x        = "Average price",
+        y        = "Property Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+
+bottom_q2<- q2%>%
+    arrange((price))%>%
+    top_n(-10)%>% 
+    ggplot(aes(x = price, y = property_type %>% reorder(price))) + 
+    geom_col(fill = "Skyblue3") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Bottom Property Type by Average price",
+        x        = "Average price",
+        y        = "Property Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold")) 
+
+
+
+grid.arrange(top_q2, bottom_q2, ncol = 2)
+
 
 ```
 
 ### Top/Bottom Room Types Based on Review Score
+<center>  _Which are the best 10 and worst 10 reviewed room types?_ </center>
+
+For this query we used the same as the previous question but instead of selecting `property_type` and `price` we selected `property_type` and `review_scores_rating` to properly answer this question.
 
 ```{r}
+q3<- listing%>%
+    select(property_type,review_scores_rating)%>%
+    group_by(property_type)%>%
+    summarise(review_scores_rating = mean(review_scores_rating))%>%
+    arrange(desc(review_scores_rating))
+
+
+top_property_type_review_scores_rating <-q3 %>%
+    arrange(desc(review_scores_rating))%>%
+    top_n(10)%>% 
+    knitr::kable(align = c("l", "c"),
+                 format.args = list(big.mark = ","),
+                 digits = 2)
+
+top_property_type_review_scores_rating
+
+
+bottom_property_type_review_scores_rating <-q3 %>%
+    arrange(review_scores_rating)%>%
+    top_n(-10)%>% 
+    knitr::kable(align = c("l", "c"),
+                 format.args = list(big.mark = ","),
+                 digits = 2)
+
+bottom_property_type_review_scores_rating
+
+
+
+
+
+```
+
+And then we plot
+
+```{r}
+
+top_q3<- q3%>%
+    arrange(desc(review_scores_rating))%>%
+    top_n(10)%>% 
+    ggplot(aes(x = review_scores_rating, y = property_type %>% reorder(review_scores_rating))) + 
+    geom_col(fill = "Aquamarine4") + 
+    
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Top Property Type by Review Score Rating",
+        x        = "Review Score Rating",
+        y        = "Property Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+
+
+bottom_q3<- q3%>%
+    arrange((review_scores_rating))%>%
+    top_n(-10)%>% 
+    ggplot(aes(x = review_scores_rating, y = property_type %>% reorder(review_scores_rating))) + 
+    geom_col(fill = "Skyblue3") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Bottom Property Type by Review Score Rating",
+        x        = "Review Score Rating",
+        y        = "Property Type"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold")) 
+
+
+
+grid.arrange(top_q3, bottom_q3, ncol = 2)
 
 ```
 
 ### Most Common Amenities
+<center>  _Which are the most common amenities offered on the properties?_ </center>
+
+By looking at the amenities information in the listing data we realize that all amenities are listed in one column. In order to quantify and group the amenities we first get the max amount of amenities a property can have using the `str_count()` function of the `stringr` library.
 
 ```{r}
+
+ncols_q4 <- max(stringr::str_count(listing$amenities, ","))
+
+```
+
+
+Then we created multiple columns according to the max amount of amenities a property can have and populate the columns with all the amenities a property can have. We do this by using `separate`function from the `tidyr`library.
+
+
+```{r}
+#Create list of column names
+colmn_q4 <- paste("col", 1:ncols_q4)
+
+
+#Create columns filled with the amenities all properties have
+q4<- listing%>%
+    select(amenities)%>%
+    tidyr::separate(
+    col = amenities, 
+    sep= ",", 
+    into=colmn_q4,
+    remove = FALSE)
+
+```
+
+
+By using `pivot_longer` we will prepare our data into Data Base format which will allow us to pipe easily.
+
+```{r}
+q4<- pivot_longer(data=q4,
+                  cols = 'col 1':'col 77',
+                  names_to = "col_number",
+                  values_to = "separated_amenities")
+
+```
+
+
+Now we pipe to answer the question we have and plot like we did on previous queries.
+
+```{r}
+    
+q4<- q4%>%
+    select(separated_amenities)%>%
+    group_by(separated_amenities)%>%
+    summarise(amenities_count=n())%>%
+    na.omit()%>%
+    arrange(desc(amenities_count))%>%
+    top_n (15)
+
+ 
+ q4_plot<-q4%>%
+    ggplot(aes(x = amenities_count, y = separated_amenities %>% reorder(amenities_count))) + 
+    geom_col(fill = "Aquamarine4") + 
+    
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        title    = "Most Common Amenities",
+        x        = "Count",
+        y        = "Amenities"
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+most_common_amenities<- q4%>%
+    knitr::kable(align = c("l", "c"),
+                 format.args = list(big.mark = ","),
+                 digits = 2)
+
+most_common_amenities
 
 ```
 
@@ -636,6 +985,10 @@ We see here that regular hosts have a noticeably lower first quartile for `respo
 ### What is the most commonly verified host information?
 
 ```{r}
+
+
+
+
 
 ```
 
