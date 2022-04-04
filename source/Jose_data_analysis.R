@@ -214,23 +214,23 @@ most_common_amenities
 
 #################### Query 4: What is the most commonly verified host information? (Host)
 
-ncols_q4 <- max(stringr::str_count(na.omit(host_info$host_verifications), ",")) + 1
-colmn_q4 <- paste("col", 1:ncols_q4)
+ncols_q10 <- max(stringr::str_count(na.omit(host_info$host_verifications), ",")) + 1
+colmn_q10 <- paste("col", 1:ncols_q10)
 
-q4<- host_info%>%
+q10<- host_info%>%
     select(host_verifications)%>%
     tidyr::separate(
         col = host_verifications, 
         sep= ",", 
-        into=colmn_q4,
+        into=colmn_q10,
         remove = FALSE)
 
-q4<- pivot_longer(data=q4,
+q10<- pivot_longer(data=q10,
                   cols = 'col 1':'col 12',
                   names_to = "col_number",
                   values_to = "separated_host_verifications")
 
-q4<- q4%>%
+q10<- q10%>%
     select(separated_host_verifications)%>%
     group_by(separated_host_verifications)%>%
     summarise(host_verifications_count=n())%>%
@@ -239,7 +239,7 @@ q4<- q4%>%
     top_n (10)
 
 
-q4_plot<-q4%>%
+q10_plot<-q10%>%
     ggplot(aes(x = host_verifications_count, y = separated_host_verifications %>% reorder(host_verifications_count))) + 
     geom_col(fill = "Aquamarine4") + 
     scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
@@ -252,10 +252,10 @@ q4_plot<-q4%>%
     theme(axis.text.x = element_text(face = "bold"),
           axis.text.y = element_text(face = "bold"))
 
-q4_plot
+q10_plot
 
 
-q4 <-most_common_host_verifications<- q4%>%
+q10 <-most_common_host_verifications<- q10%>%
     knitr::kable(align = c("l", "c"),
                  format.args = list(big.mark = ","),
                  digits = 2)

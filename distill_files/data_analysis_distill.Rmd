@@ -71,7 +71,7 @@ library(zoo)
 Next, we connect to our database that we set up in the previous post
 
 ```{r}
-con <- dbConnect(RSQLite::SQLite(), "airdb.SQLite")
+con <- dbConnect(RSQLite::SQLite(), "../airdb.SQLite")
 ```
 
 
@@ -315,7 +315,7 @@ dbClearResult(res_listing)
 
 <center>  _What is the most common room type available?_ </center>
 
-To get the most common room type available we start by selecting `room_type` and `has_availability`, the last one being a logical indicator of general unit availability of room types. Then we filter the rooms that have availability, group them by `room_type` and ranked the room types based.
+To get the most common room type available start by selecting `room_type` and `has_availability`, the last one being a logical indicator of general unit availability of room types. Then we filter the rooms that have availability, group them by `room_type` and ranked the room types based.
 
 
 ```{r}
@@ -1013,7 +1013,7 @@ q10<- host_info%>%
 ```{r}
 #Pivot longer to prepare data into Data Base format
 q10<- pivot_longer(data=q10,
-                  cols = 'col 1':'col 12',
+                  cols = 'col 1':'col 11',
                   names_to = "col_number",
                   values_to = "separated_host_verifications")
 
