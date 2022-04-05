@@ -1,0 +1,154 @@
+---
+title: "Bangkok Airbnb"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+
+```{r}
+# Libraries
+library(DBI) 
+library(RSQLite)
+library(tidyr)
+library(tibble)
+library(stringr)
+library(dbplyr)
+library(dplyr, warn.conflicts = FALSE)
+library(leaflet)
+library(lubridate)
+library(ggplot2)
+library(gridExtra)
+library(tidyquant)
+library(zoo)
+```
+
+
+```{r}
+con <- dbConnect(RSQLite::SQLite(), "../airdb.SQLite")
+```
+
+
+```{r}
+host_info <- tbl(con, "host_info") %>% as.data.frame()
+listing <- tbl(con, "listing") %>% as.data.frame()
+```
+
+
+# Overview
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Basic Info
+
+```{r}
+knitr::include_graphics("airbnb-logo.png", dpi=10)
+```
+
+
+***
+
+This is a test of the commentary section. I want to see what will happen to the size of the logo, meaning if it will shrink or enlarge in size when this comment is included. The logo and the column box itself do not have a high resolution or a lot of space. So it will be instantly see if this amount of text, which is about what I'm expecting in terms of a write up, maybe a little less you know how it will fit. 
+
+### Summary Stats
+
+```{r}
+# Number of room listings
+
+# Number of hosts
+number_of_hosts <- 
+    host_info %>% 
+    select(host_id) %>% 
+    count()
+valueBox(number_of_hosts[[1]], caption = "Number of Hosts", icon = "fa-tag")
+# Total reviews
+```
+
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Map
+
+```{r}
+q3 <- listing %>%
+    left_join(host_info, by = "host_id") %>%
+    select(host_id, host_name, listing_url, latitude, longitude, price,
+           review_scores_rating, number_of_reviews, neighbourhood_cleansed) %>%
+    replace_na(list(name = "No Name", host_name = "No Host Name"))
+
+
+popup <- paste0("<b>", q3$name, "</b><br>",
+                "Listing ID: ", q3$id, "<br>",
+                "Host Name: ", q3$host_name, "<br>",
+                "Price: ", q3$price, "<br>",
+                "Review Scores Rating: ", ifelse(is.na(q3$review_scores_rating), "No Review Yet", q3$review_scores_rating) , "<br>",
+                "Number of Reviews: ", q3$number_of_reviews, "<br>",
+                "<a href=", q3$listing_url, "> Click for more info</a>"
+                )
+leaflet(data = q3) %>% 
+    addTiles() %>% 
+    addMarkers(lng = ~longitude,
+               lat = ~latitude, 
+               popup = popup, 
+               clusterOptions = markerClusterOptions())
+```
+
+
+# Room Listings
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+
+```
+
+### Chart C
+
+```{r}
+
+```
+
+
+# Host Info
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+
+```
+
+### Chart C
+
+```{r}
+
+```
