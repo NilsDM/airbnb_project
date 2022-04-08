@@ -3,14 +3,13 @@ title: "Bangkok Airbnb"
 output: 
   flexdashboard::flex_dashboard:
     orientation: columns
-    vertical_layout: fill
+    vertical_layout: scroll
 ---
 
 ```{r setup, include=FALSE}
 library(flexdashboard)
-```
+library(flextable)
 
-```{r}
 # Libraries
 library(DBI) 
 library(RSQLite)
@@ -24,7 +23,9 @@ library(lubridate)
 library(ggplot2)
 library(gridExtra)
 library(tidyquant)
+library(officer)
 library(zoo)
+library(gt)
 ```
 
 
@@ -41,36 +42,64 @@ listing <- tbl(con, "listing") %>% as.data.frame()
 
 # Overview
 
-Column {data-width=350}
+Column {data-width=220}
 -----------------------------------------------------------------------
 
 ### Basic Info
 
 ```{r}
-knitr::include_graphics("airbnb-logo.png", dpi=10)
-```
 
+```
 
 ***
 
-This is a test of the commentary section. I want to see what will happen to the size of the logo, meaning if it will shrink or enlarge in size when this comment is included. The logo and the column box itself do not have a high resolution or a lot of space. So it will be instantly see if this amount of text, which is about what I'm expecting in terms of a write up, maybe a little less you know how it will fit. 
+Hello! Welcome to our Airbnb dashboard! Airbnb is a online marketplace for lodging, primarily homestays for vacation rentals, and tourism activities. It allows users to connect directly with property owners and managers for affordable and flexible rentals, and allows property owners to easily monetize their properties on a much more flexible basis than conventional rentals.We have created a dashboard to help people explore users, listings and reviews. The data use for this dashboard is specifically from the city of Bangkok in Thailand. This dashboard was developed using Flex by Nils DM and Jose Lama.
 
-### Summary Stats
+
+
+### Number of room listings
 
 ```{r}
 # Number of room listings
+number_of_listings <-
+  listing %>%
+  select(id) %>%
+  distinct() %>%
+  count()
+valueBox(number_of_listings[[1]], caption = "Number of Listings", icon = "fa-tag", color = "success")
+```
 
+### Number of hosts
+
+```{r}
 # Number of hosts
 number_of_hosts <- 
     host_info %>% 
     select(host_id) %>% 
     count()
-valueBox(number_of_hosts[[1]], caption = "Number of Hosts", icon = "fa-tag")
-# Total reviews
+valueBox(number_of_hosts[[1]], caption = "Number of Hosts", icon = "fa-home")
 ```
 
 
-Column {data-width=650}
+### Number of reviews
+
+```{r}
+number_of_reviews <- listing %>% 
+  select(review_scores_rating) %>%
+  drop_na() %>% 
+  count()
+valueBox(number_of_reviews[[1]], caption = "Number of Reviews", icon = "fa-thumbs-up", color = "info")
+```
+
+### 
+
+```{r}
+knitr::include_graphics("airbnb-logo-2.jpg")
+```
+
+
+
+Column {data-width=780}
 -----------------------------------------------------------------------
 
 ### Map
@@ -129,26 +158,151 @@ Column {data-width=350}
 
 # Host Info
 
-Column {data-width=650}
+Column {data-width=500}
 -----------------------------------------------------------------------
 
-### Chart A
+### Top 35 Hosts By Revenue
 
 ```{r}
+q4 <- listing %>% 
+    left_join(host_info, by = "host_id") %>% 
+    select(host_id, host_name, price, review_scores_rating, 
+           minimum_nights,  number_of_reviews, host_since,
+           host_is_superhost) %>%
+    mutate(total_earnings = price * review_scores_rating * minimum_nights) %>% 
+    drop_na() %>% 
+    group_by(host_id, host_name) %>% 
+    mutate(number_of_listing = n(),
+           average_price = mean(price)) %>% 
+    ungroup() %>% 
+    select(host_name, host_since, host_is_superhost,
+           total_earnings, number_of_listing, average_price) %>% 
+    arrange(desc(total_earnings)) %>% 
+    filter(total_earnings != 16242500) %>% 
+    head(35)
 
+
+# 
+# def_cell <- fp_cell(border = fp_border(color="wheat"))
+# 
+def_par <- fp_par(text.align = "center")
+
+ft <- flextable(q4) %>% 
+  style(pr_p = def_par)
+# ft <- style(ft, pr_c = def_cell, pr_p = def_par, part = "all")
+ft
 ```
 
-Column {data-width=350}
+
+### Super hosts
+
+```{r}
+super_host <- 
+  host_info %>% 
+  select(host_id, host_is_superhost) %>% 
+  distinct() %>% 
+  filter(host_is_superhost == 1) %>% 
+  count()
+valueBox(super_host[[1]], caption = "SuperHost", icon = "fa-star",
+         color = "primary")
+```
+
+### Verified host
+
+```{r}
+verified_host <- 
+  host_info %>% 
+  select(host_identity_verified) %>% 
+  filter(host_identity_verified == 1) %>% 
+  count()
+valueBox(verified_host[[1]], caption = "Verified Host", icon = "fa-check",
+         color = "success")
+```
+
+### Unverified host
+
+```{r}
+unverified_host <- 
+  host_info %>% 
+  select(host_identity_verified) %>% 
+  filter(host_identity_verified == 0) %>% 
+  count()
+valueBox(unverified_host[[1]], caption = "Unverified Host", icon = "fa-thumbs-down",
+         color = "warning")
+```
+
+Column {data-width=500}
 -----------------------------------------------------------------------
 
-### Chart B
+### Most Common Verified Host Info
 
 ```{r}
+ncols_q10 <- max(stringr::str_count(na.omit(host_info$host_verifications), ",")) + 1
+colmn_q10 <- paste("col", 1:ncols_q10)
 
+q10<- host_info%>%
+    select(host_verifications)%>%
+    tidyr::separate(
+        col = host_verifications, 
+        sep= ",", 
+        into=colmn_q10,
+        remove = FALSE)
+
+q10<- pivot_longer(data=q10,
+                  cols = 'col 1':'col 12',
+                  names_to = "col_number",
+                  values_to = "separated_host_verifications")
+
+q10<- q10%>%
+    select(separated_host_verifications)%>%
+    group_by(separated_host_verifications)%>%
+    summarise(host_verifications_count=n())%>%
+    na.omit()%>%
+    arrange(desc(host_verifications_count))%>%
+    top_n (10)
+
+
+q10_plot<-q10%>%
+    ggplot(aes(x = host_verifications_count, y = separated_host_verifications %>% reorder(host_verifications_count))) + 
+    geom_col(fill = "Skyblue3") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        x        = "",
+        y        = ""
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+q10_plot
 ```
 
-### Chart C
+### Number of Hosts Joined Over Time
 
 ```{r}
+q1 <- host_info %>% 
+    left_join(listing, by = "host_id") %>% 
+    select(host_id, host_since) %>% 
+    mutate(host_since_date = as.Date(host_since)) %>% 
+    separate("host_since", c("Year", "Month", "Day"), sep = "-") %>% 
+    select(-Day) %>% 
+    group_by(Year, Month) %>% 
+    count(Year, Month) %>% 
+    ungroup() %>% 
+    mutate(year_month = paste0(Year, "-", Month, "-", "01"), 
+           year_month_2 = paste0(Year, "-", Month), 
+           joined = n) %>% 
+    select(year_month, year_month_2, joined) %>% 
+    mutate(year_month = as.Date(year_month)) %>% 
+    drop_na()
 
+q1 %>%
+    ggplot(aes(x = year_month, y = joined)) +
+    geom_line(size = 1.2, colour = "Aquamarine4") + 
+    scale_x_date(breaks = waiver(), date_breaks = "6 months") + theme_tq() + 
+    theme(axis.text.x = element_text(angle = 45, face = "bold", vjust = 0.65),
+          axis.text.y = element_text(face = "bold")) + 
+    labs(
+        y        = "Joined",
+        x        = "Year/Month")
 ```
