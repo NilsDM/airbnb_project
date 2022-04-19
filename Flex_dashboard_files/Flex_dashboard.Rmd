@@ -131,28 +131,138 @@ leaflet(data = q3) %>%
 
 # Room Listings
 
-Column {data-width=650}
+Column {data-width=500}
 -----------------------------------------------------------------------
 
-### Chart A
+### Most common amenities
 
 ```{r}
+ncols_q4 <- max(stringr::str_count(listing$amenities, ",")) + 1
+colmn_q4 <- paste("col", 1:ncols_q4)
+
+q4<- listing%>%
+    select(amenities)%>%
+    tidyr::separate(
+    col = amenities, 
+    sep= ",", 
+    into=colmn_q4,
+    remove = FALSE)
+
+q4<- pivot_longer(data=q4,
+                  cols = 'col 1':'col 78',
+                  names_to = "col_number",
+                  values_to = "separated_amenities")
+    
+q4<- q4%>%
+    select(separated_amenities)%>%
+    group_by(separated_amenities)%>%
+    summarise(amenities_count=n())%>%
+    na.omit()%>%
+    arrange(desc(amenities_count))%>%
+    top_n (15)
+
+ 
+ q4_plot<-q4%>%
+    ggplot(aes(x = amenities_count, y = separated_amenities %>% reorder(amenities_count))) + 
+    geom_col(fill = "#9999CC") + 
+    
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+       # title    = "Most Common Amenities",
+        x        = "",
+        y        = ""
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+most_common_amenities<- q4%>%
+    knitr::kable(align = c("l", "c"),
+                 format.args = list(big.mark = ","),
+                 digits = 2)
+
+most_common_amenities
 
 ```
 
-Column {data-width=350}
------------------------------------------------------------------------
-
-### Chart B
+### Most common room type available
 
 ```{r}
+
+q1<- listing%>%
+    select(room_type,has_availability)%>%
+    group_by(room_type)%>%
+    filter(has_availability==1)%>%
+    summarise(availability=n())%>%
+    arrange(desc(availability))
+
+
+q1_plot<-q1%>%
+    ggplot(aes(x = availability, y = room_type %>% reorder(availability))) + 
+    geom_col(fill = "#9999CC") + 
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        #title    = "Most Common Room Type Available",
+        x        = "",
+        y        = ""
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
+
+q1_plot +  coord_flip()
 
 ```
 
-### Chart C
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Top property type by average price
 
 ```{r}
+q2<- listing%>%
+    select(property_type,price)%>%
+    group_by(property_type)%>%
+    summarise(price = mean(price))%>%
+    arrange(desc(price))
+        
+top_q2<- q2%>%
+    arrange(desc(price))%>%
+    top_n(10)%>% 
+    ggplot(aes(x = price, y = property_type %>% reorder(price))) + 
+    geom_col(fill = "Aquamarine4") + 
+   
+    scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
+    labs(
+        #title    = "Top Property Type by Average price",
+        x        = "",
+        y        = ""
+    ) + 
+    theme_tq() + 
+    theme(axis.text.x = element_text(face = "bold"),
+          axis.text.y = element_text(face = "bold"))
 
+top_q2
+```
+
+### Property type by review score rating
+
+```{r}
+q3<- listing%>%
+    select(property_type,review_scores_rating)%>%
+    group_by(property_type)%>%
+    summarise(review_scores_rating = mean(review_scores_rating))%>%
+    arrange(desc(review_scores_rating))
+
+top_property_type_review_scores_rating <-q3 %>%
+    arrange(desc(review_scores_rating))%>%
+    top_n(20)%>% 
+    knitr::kable(align = c("l", "c"),
+                 format.args = list(big.mark = ","),
+                 digits = 2)
+
+top_property_type_review_scores_rating
 ```
 
 
