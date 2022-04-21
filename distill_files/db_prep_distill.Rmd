@@ -3,7 +3,7 @@ title: "Building & Preparing a RSQLite Database Using R"
 description: |
   A step-by-step guide for constructing an SQLite database using Airbnb data.
 author:
-  - name: Nils Dosaj Mikkelsen, Jose Lama
+  - name: Nils Dosaj Mikkelsen
     url: https://example.com/norajones
     
 date: "`r Sys.Date()`"

@@ -3,7 +3,7 @@ title: "Airbnb Data Analytics"
 description: | 
   Using the RSQLite database setup in the previous post to answer several related data analysis questions
 author:
-  - name: Nils Dosaj Mikkelsen, Jose Lama
+  - name: Nils Dosaj Mikkelsen
     url: https://example.com/norajones 
     
 date: "`r Sys.Date()`"
@@ -1037,7 +1037,9 @@ q10<- q10%>%
 
 #ploting the answer for visual reference
 q10_plot<-q10%>%
-    ggplot(aes(x = host_verifications_count, y = separated_host_verifications %>% reorder(host_verifications_count))) + 
+    ggplot(aes(x = host_verifications_count, 
+               y = separated_host_verifications %>% 
+                   reorder(host_verifications_count))) + 
     geom_col(fill = "Aquamarine4") + 
     scale_x_continuous(labels = scales::number_format(big.mark = ",")) + 
     labs(

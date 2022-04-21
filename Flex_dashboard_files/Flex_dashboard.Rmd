@@ -53,8 +53,7 @@ Column {data-width=220}
 
 ***
 
-Hello! Welcome to our Airbnb dashboard! Airbnb is a online marketplace for lodging, primarily homestays for vacation rentals, and tourism activities. It allows users to connect directly with property owners and managers for affordable and flexible rentals, and allows property owners to easily monetize their properties on a much more flexible basis than conventional rentals.We have created a dashboard to help people explore users, listings and reviews. The data use for this dashboard is specifically from the city of Bangkok in Thailand. This dashboard was developed using Flex by Nils DM and Jose Lama.
-
+Hello! Welcome to the Airbnb dashboard! Airbnb is a online marketplace for lodging, primarily for vacation rentals, and tourism activities. It allows users to connect directly with property owners and managers for affordable and flexible rentals, and allows property owners to easily monetize their properties on a much more flexible basis than conventional rentals. This dashboard was created to help people users stats, listings and reviews. The data used for this dashboard is specifically from the city of Bangkok in Thailand.
 
 
 ### Number of room listings
